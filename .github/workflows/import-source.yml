@@ -1,1 +1,39 @@
-
+name: Import scanned devnet source
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    if: github.repository == 'jclawd111/QXf67'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and unpack the scanned source
+        shell: python
+        run: |
+          import hashlib, pathlib, stat, zipfile
+          archive = pathlib.Path('devnet-source.zip')
+          expected = '07807d9ba684ef874dcd447e772a4a32f47e3f21688e2f1539131dec01e0b722'
+          assert hashlib.sha256(archive.read_bytes()).hexdigest() == expected, 'Archive hash mismatch'
+          with zipfile.ZipFile(archive) as z:
+              entries = z.infolist()
+              assert len(entries) == 279, 'Unexpected file count'
+              assert sum(i.file_size for i in entries) < 8000000, 'Unexpected expanded size'
+              for entry in entries:
+                  p = pathlib.PurePosixPath(entry.filename)
+                  assert not p.is_absolute() and '..' not in p.parts and ':' not in entry.filename
+                  assert p.parts[0] not in {'.git', 'work', 'node_modules', 'test-results'}
+                  assert not stat.S_ISLNK(entry.external_attr >> 16)
+                  assert not (p.name.startswith('.env') and p.name != '.env.example')
+              z.extractall('.')
+          print('Verified and unpacked 279 scanned source files')
+      - name: Commit source and remove temporary import files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm devnet-source.zip .github/workflows/import-source.yml
+          git add -A
+          git commit -m 'Import independent devnet vault source with MIT attribution'
+          git push origin HEAD:main
