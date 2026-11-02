@@ -1,0 +1,384 @@
+/** Protocol 3 encodings and instructions (docs/PROTOCOL.md §2–§4).
+ * DRAFT: mirrors programs/qsafe3; not reviewed, not used by the released app. */
+import "../polyfill";
+import { Buffer } from "buffer";
+import {
+  ComputeBudgetProgram,
+  PublicKey,
+  SystemProgram,
+  TransactionInstruction,
+} from "@solana/web3.js";
+import { sha256 } from "@noble/hashes/sha256";
+import { TOKEN_PROGRAM_ID } from "../classic-token";
+import { concat, readU64, u64 } from "../bytes";
+import { SIGNATURE_BYTES } from "../lmots";
+import {
+  decodeRecover,
+  encodeRecover,
+  Genesis,
+  genesisData,
+  MAX_DELAY_SECS,
+  MIN_DELAY_SECS,
+  PROTOCOL_VERSION,
+  Recover,
+  RECOVER_DOMAIN,
+  RECOVER_SIZE,
+  VAULT_ID_DOMAIN,
+  VAULT_SEED,
+  vaultIdOf,
+} from "./core";
+export {
+  decodeRecover,
+  encodeRecover,
+  genesisData,
+  MAX_DELAY_SECS,
+  MIN_DELAY_SECS,
+  PROTOCOL_VERSION,
+  RECOVER_DOMAIN,
+  RECOVER_SIZE,
+  VAULT_ID_DOMAIN,
+  VAULT_SEED,
+  vaultIdOf,
+};
+export type { Genesis, Recover };
+export const VAULT_SIZE = 447;
+export const ANNOUNCE_SIZE = 196;
+export const SIGNATURE_SIZE = SIGNATURE_BYTES;
+export const PROOF_SIZE = 74 + SIGNATURE_SIZE;
+/** How long an announced withdrawal stays executable once it opens: the
+ * vault's waiting period, and never less than a day. */
+export const executeWindowSecs = (delaySecs: number) => BigInt(Math.max(delaySecs, 86_400));
+const ROLE_OPERATIONAL = 1;
+export const ANNOUNCE_DOMAIN = new Uint8Array([
+  66, 85, 78, 75, 69, 82, 51, 95, 65, 78, 78, 79, 85, 78, 67, 69,
+]);
+export const VAULT_MAGIC_BYTES = new Uint8Array([66, 85, 78, 75, 69, 82, 48, 51]);
+/** How far ahead of the chain clock an announcement's deadline may be. */
+export const MAX_ANNOUNCE_AHEAD_SECS = 86_400n;
+const ZERO = new Uint8Array(32);
+const isZero = (b: Uint8Array) => b.every((x) => x === 0);
+const i64 = (n: bigint) => {
+  if (n < -(1n << 63n) || n >= 1n << 63n) throw new Error("Time out of range");
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setBigInt64(0, n, true);
+  return b;
+};
+const readI64 = (b: Uint8Array, offset: number) =>
+  new DataView(b.buffer, b.byteOffset, b.byteLength).getBigInt64(offset, true);
+const root32 = (b: Uint8Array, what: string) => {
+  if (b.length !== 32) throw new Error(`${what} must be 32 bytes`);
+  return b;
+};
+
+export const vaultAddress = (program: PublicKey, vaultId: Uint8Array) =>
+  PublicKey.findProgramAddressSync([Buffer.from(VAULT_SEED), vaultId], program)[0];
+export const proofAddress = (
+  program: PublicKey,
+  payer: PublicKey,
+  digest: Uint8Array,
+) =>
+  PublicKey.findProgramAddressSync(
+    [Buffer.from("proof"), payer.toBytes(), digest],
+    program,
+  )[0];
+/** Markers belong to one vault; a root retired in one vault is untouched in
+ * every other. */
+export function spentAddress(program: PublicKey, vault: PublicKey, root: Uint8Array) {
+  if (root.length !== 32 || isZero(root)) throw new Error("Missing commitment");
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("spent-v3"), vault.toBytes(), root],
+    program,
+  )[0];
+}
+
+export type Announce = {
+  vaultId: Uint8Array;
+  chainTag: Uint8Array;
+  epoch: bigint;
+  opIndex: bigint;
+  kind: 0 | 1;
+  mint: PublicKey;
+  destination: PublicKey;
+  amount: bigint;
+  /** Unix seconds. The announcement must land at or before this. */
+  announceBy: bigint;
+  nextOpRoot: Uint8Array;
+  /** The decimal places the signer was shown for the token; 0 for SOL. The
+   * program refuses the announcement if the mint's differ. */
+  decimals: number;
+};
+export function encodeAnnounce(a: Announce): Uint8Array {
+  if (
+    (a.kind !== 0 && a.kind !== 1) ||
+    a.amount <= 0n ||
+    a.announceBy <= 0n ||
+    isZero(root32(a.nextOpRoot, "Next root")) ||
+    !Number.isInteger(a.decimals) ||
+    a.decimals < 0 ||
+    a.decimals > 255 ||
+    (a.kind === 0 && a.decimals !== 0) ||
+    (a.kind === 0) !== a.mint.equals(PublicKey.default)
+  )
+    throw new Error("Invalid announcement");
+  return concat(
+    new Uint8Array([PROTOCOL_VERSION, ROLE_OPERATIONAL]),
+    root32(a.vaultId, "Vault id"),
+    root32(a.chainTag, "Chain tag"),
+    u64(a.epoch),
+    u64(a.opIndex),
+    new Uint8Array([a.kind]),
+    a.mint.toBytes(),
+    a.destination.toBytes(),
+    u64(a.amount),
+    i64(a.announceBy),
+    a.nextOpRoot,
+    new Uint8Array([a.decimals]),
+  );
+}
+export function decodeAnnounce(b: Uint8Array): Announce {
+  if (
+    b.length !== ANNOUNCE_SIZE ||
+    b[0] !== PROTOCOL_VERSION ||
+    b[1] !== ROLE_OPERATIONAL ||
+    b[82] > 1
+  )
+    throw new Error("Invalid announcement encoding");
+  const a: Announce = {
+    vaultId: b.slice(2, 34),
+    chainTag: b.slice(34, 66),
+    epoch: readU64(b, 66),
+    opIndex: readU64(b, 74),
+    kind: b[82] as 0 | 1,
+    mint: new PublicKey(b.slice(83, 115)),
+    destination: new PublicKey(b.slice(115, 147)),
+    amount: readU64(b, 147),
+    announceBy: readI64(b, 155),
+    nextOpRoot: b.slice(163, 195),
+    decimals: b[195],
+  };
+  encodeAnnounce(a); // One validation path.
+  return a;
+}
+/** `domain || program || vault || payload`: the bytes that are signed. */
+function signedMessage(
+  domain: Uint8Array,
+  program: PublicKey,
+  vaultId: Uint8Array,
+  payload: Uint8Array,
+) {
+  return concat(
+    domain,
+    program.toBytes(),
+    vaultAddress(program, vaultId).toBytes(),
+    payload,
+  );
+}
+export const announceMessage = (program: PublicKey, payload: Uint8Array) =>
+  signedMessage(ANNOUNCE_DOMAIN, program, decodeAnnounce(payload).vaultId, payload);
+export const recoverMessage = (program: PublicKey, payload: Uint8Array) =>
+  signedMessage(RECOVER_DOMAIN, program, decodeRecover(payload).vaultId, payload);
+
+export type Pending = {
+  kind: 0 | 1;
+  mint: PublicKey;
+  destination: PublicKey;
+  amount: bigint;
+  opensAt: bigint;
+  deadline: bigint;
+  epoch: bigint;
+  digest: Uint8Array;
+};
+export type VaultState = {
+  vaultId: Uint8Array;
+  chainTag: Uint8Array;
+  opRoot: Uint8Array;
+  opIndex: bigint;
+  epoch: bigint;
+  recRoot: Uint8Array;
+  delaySecs: number;
+  pending: Pending | null;
+  bump: number;
+  /** Wallets a withdrawal may go to without waiting. */
+  trusted: PublicKey[];
+  /** The salt the vault was created with. Names its signers (onetime.ts). */
+  salt: Uint8Array;
+};
+export function parseVault(d: Uint8Array): VaultState {
+  if (
+    d.length !== VAULT_SIZE ||
+    !VAULT_MAGIC_BYTES.every((b, i) => d[i] === b) ||
+    d[156] > 1 ||
+    (d[156] === 0 && !isZero(d.slice(157, 286))) ||
+    (d[156] === 1 && d[157] > 1)
+  )
+    throw new Error("Unrecognized Quantum Safe account");
+  return {
+    vaultId: d.slice(8, 40),
+    chainTag: d.slice(40, 72),
+    opRoot: d.slice(72, 104),
+    opIndex: readU64(d, 104),
+    epoch: readU64(d, 112),
+    recRoot: d.slice(120, 152),
+    delaySecs: new DataView(d.buffer, d.byteOffset).getUint32(152, true),
+    pending:
+      d[156] === 0
+        ? null
+        : {
+            kind: d[157] as 0 | 1,
+            mint: new PublicKey(d.slice(158, 190)),
+            destination: new PublicKey(d.slice(190, 222)),
+            amount: readU64(d, 222),
+            opensAt: readI64(d, 230),
+            deadline: readI64(d, 238),
+            epoch: readU64(d, 246),
+            digest: d.slice(254, 286),
+          },
+    bump: d[286],
+    trusted: [0, 1, 2, 3]
+      .map((i) => d.slice(287 + 32 * i, 319 + 32 * i))
+      .filter((w) => !isZero(w))
+      .map((w) => new PublicKey(w)),
+    salt: d.slice(415, 447),
+  };
+}
+/** Where a vault's withdrawal stands at `now` (Unix seconds). */
+export function pendingPhase(v: VaultState, now: bigint) {
+  const p = v.pending;
+  if (!p) return "none" as const;
+  if (now < p.opensAt) return "waiting" as const;
+  return now <= p.deadline ? ("open" as const) : ("expired" as const);
+}
+
+const meta = (pubkey: PublicKey, isWritable = false, isSigner = false) => ({
+  pubkey,
+  isWritable,
+  isSigner,
+});
+const ix = (
+  programId: PublicKey,
+  keys: ReturnType<typeof meta>[],
+  opcode: number,
+  data: Uint8Array = new Uint8Array(0),
+) =>
+  new TransactionInstruction({
+    programId,
+    keys,
+    data: Buffer.from(concat(new Uint8Array([opcode]), data)),
+  });
+export function initializeIx(program: PublicKey, payer: PublicKey, g: Genesis) {
+  return ix(
+    program,
+    [
+      meta(payer, true, true),
+      meta(vaultAddress(program, vaultIdOf(g)), true),
+      meta(SystemProgram.programId),
+    ],
+    0,
+    genesisData(g),
+  );
+}
+/** Two transactions' worth of instructions that upload a signature. */
+export function stageIxs(
+  program: PublicKey,
+  payer: PublicKey,
+  message: Uint8Array,
+  signature: Uint8Array,
+) {
+  if (signature.length !== SIGNATURE_SIZE) throw new Error("Invalid signature");
+  const digest = sha256(message);
+  const proof = proofAddress(program, payer, digest);
+  return [0, 600].map((offset) => {
+    const o = new Uint8Array(2);
+    new DataView(o.buffer).setUint16(0, offset, true);
+    return ix(
+      program,
+      [meta(payer, true, true), meta(proof, true), meta(SystemProgram.programId)],
+      1,
+      concat(digest, o, signature.slice(offset, offset + 600)),
+    );
+  });
+}
+/** `sourceToken` is the vault's token account that holds the amount, for a
+ * token announcement: the program refuses one the vault could not pay. */
+export function announceIx(
+  program: PublicKey,
+  payer: PublicKey,
+  payload: Uint8Array,
+  currentOpRoot: Uint8Array,
+  sourceToken?: PublicKey,
+) {
+  const a = decodeAnnounce(payload);
+  if (a.kind === 1 && !sourceToken) throw new Error("Token source required");
+  const vault = vaultAddress(program, a.vaultId);
+  return ix(
+    program,
+    [
+      meta(vault, true),
+      meta(proofAddress(program, payer, sha256(announceMessage(program, payload)))),
+      meta(payer, true, true),
+      meta(spentAddress(program, vault, currentOpRoot), true),
+      meta(spentAddress(program, vault, a.nextOpRoot)),
+      meta(SystemProgram.programId),
+      // A token announcement names its mint, and the vault's account that pays,
+      // so the program can check both now.
+      ...(a.kind === 1 ? [meta(a.mint), meta(sourceToken!)] : []),
+    ],
+    2,
+    payload,
+  );
+}
+/** Permissionless. `sourceToken` is the vault's token account for SPL records. */
+export function executeIx(
+  program: PublicKey,
+  vault: PublicKey,
+  pending: Pick<Pending, "kind" | "mint" | "destination">,
+  sourceToken?: PublicKey,
+) {
+  const keys = [meta(vault, true), meta(pending.destination, true)];
+  if (pending.kind === 1) {
+    if (!sourceToken) throw new Error("Token source required");
+    keys.push(meta(sourceToken, true), meta(pending.mint), meta(TOKEN_PROGRAM_ID));
+  }
+  return ix(program, keys, 3);
+}
+export const expireIx = (program: PublicKey, vault: PublicKey) =>
+  ix(program, [meta(vault, true)], 4);
+export function recoverIx(
+  program: PublicKey,
+  payer: PublicKey,
+  payload: Uint8Array,
+  current: { recRoot: Uint8Array },
+) {
+  const r = decodeRecover(payload);
+  const vault = vaultAddress(program, r.vaultId);
+  return ix(
+    program,
+    [
+      meta(vault, true),
+      meta(proofAddress(program, payer, sha256(recoverMessage(program, payload)))),
+      meta(payer, true, true),
+      meta(spentAddress(program, vault, current.recRoot), true),
+      meta(spentAddress(program, vault, r.nextRecRoot)),
+      meta(spentAddress(program, vault, r.nextOpRoot)),
+      meta(SystemProgram.programId),
+    ],
+    5,
+    payload,
+  );
+}
+export const closeProofIx = (
+  program: PublicKey,
+  payer: PublicKey,
+  message: Uint8Array,
+) =>
+  ix(
+    program,
+    [meta(proofAddress(program, payer, sha256(message)), true), meta(payer, true, true)],
+    6,
+  );
+/** Verifying a signature costs at most about 575,000 compute units (the
+ * program caps the hash-chain steps); the rest is headroom for address
+ * derivation. */
+export const computeIx = () =>
+  ComputeBudgetProgram.setComputeUnitLimit({ units: 800_000 });
+export { ZERO as ZERO_ROOT };

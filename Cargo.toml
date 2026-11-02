@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["programs/qsafe3", "programs/qsafe3-cpi-probe", "crates/qsafe-lmots"]
+# The Solana version `solana-verify` builds the program with (docs/LAUNCH-RUNBOOK.md).
+# Keep it equal to SOLANA_VERSION in .github/workflows/ci.yml.
+[workspace.metadata.cli]
+solana = "4.3.0"
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Quantum Safe contributors"]
+[workspace.lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(target_os, values("solana"))', 'cfg(target_arch, values("bpf"))'] }
+[workspace.dependencies]
+solana-sha256-hasher = { version = "3.1.0", default-features = false }
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1

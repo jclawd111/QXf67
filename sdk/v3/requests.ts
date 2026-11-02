@@ -1,0 +1,145 @@
+/** Public files exchanged between the offline recovery tool and the website
+ * (DRAFT). None of them contains a secret: the website can submit them, and
+ * anyone who obtains one can do no more than that.
+ *
+ *  network card      site -> tool   which network and program to build for
+ *  creation request  tool -> site   the two public commitments of a new vault
+ *  recovery packet   tool -> site   the one signed recovery message for an epoch */
+import { z } from "zod";
+import { hex, unhex } from "../bytes";
+import { SIGNATURE_BYTES } from "../lmots";
+import { identityOf } from "./kit";
+import { labelMatchesGenesis } from "../../lib/qsafe-config";
+import {
+  address as addressBytes,
+  decodeRecover,
+  MAX_DELAY_SECS,
+  RECOVER_SIZE,
+  recoverMessageBytes,
+  TRUSTED_SLOTS,
+  vaultIdOf,
+} from "./core";
+import { signerOf, SIGNS_RECOVERY, verifies } from "./onetime";
+import type { VaultState } from "./protocol";
+const SIGNATURE_SIZE = SIGNATURE_BYTES;
+const hex32 = z.string().regex(/^[0-9a-f]{64}$/);
+const address = z.string().min(32).max(44);
+const network = z.enum(["mainnet-beta", "devnet", "localnet"]);
+export const networkCardSchema = z
+  .object({
+    version: z.literal(3),
+    kind: z.literal("network"),
+    network,
+    genesis: address,
+    program: address,
+  })
+  .strict()
+  .refine(labelMatchesGenesis);
+const identity = {
+  version: z.literal(3),
+  network,
+  genesis: address,
+  program: address,
+  vaultId: hex32,
+  vault: address,
+};
+export const creationRequestSchema = z
+  .object({
+    ...identity,
+    kind: z.literal("create"),
+    salt: hex32,
+    trusted: z.array(address).max(TRUSTED_SLOTS),
+    delaySecs: z.number().int().min(0).max(MAX_DELAY_SECS),
+    opRoot: hex32,
+    recRoot: hex32,
+  })
+  .strict()
+  .refine(labelMatchesGenesis);
+export const recoveryFileSchema = z
+  .object({
+    ...identity,
+    kind: z.literal("recover"),
+    epoch: z.string().regex(/^(0|[1-9][0-9]*)$/),
+    payload: z.string().regex(new RegExp(`^[0-9a-f]{${RECOVER_SIZE * 2}}$`)),
+    signature: z.string().regex(new RegExp(`^[0-9a-f]{${SIGNATURE_SIZE * 2}}$`)),
+  })
+  .strict()
+  .refine(labelMatchesGenesis);
+export type NetworkCard = z.infer<typeof networkCardSchema>;
+export type CreationRequest = z.infer<typeof creationRequestSchema>;
+export type RecoveryFile = z.infer<typeof recoveryFileSchema>;
+const ZERO = "0".repeat(64);
+function parse<T>(schema: z.ZodType<T>, raw: string, what: string): T {
+  if (raw.length > 8000) throw new Error("File is too large");
+  try {
+    return schema.parse(JSON.parse(raw));
+  } catch {
+    throw new Error(`That file is not ${what}`);
+  }
+}
+export function parseNetworkCard(raw: string): NetworkCard {
+  const card = parse(networkCardSchema, raw, "a Quantum Safe network card");
+  addressBytes(card.genesis);
+  addressBytes(card.program);
+  return card;
+}
+export const genesisOf = (r: CreationRequest) => ({
+  salt: unhex(r.salt, 32),
+  chainTag: addressBytes(r.genesis),
+  opRoot: unhex(r.opRoot, 32),
+  recRoot: unhex(r.recRoot, 32),
+  delaySecs: r.delaySecs,
+  trusted: r.trusted.map(addressBytes),
+});
+export function parseCreationRequest(raw: string): CreationRequest {
+  const r = parse(creationRequestSchema, raw, "a Quantum Safe creation request");
+  if (r.opRoot === ZERO || r.recRoot === ZERO || r.opRoot === r.recRoot)
+    throw new Error("Creation request has invalid commitments");
+  // The address must be the one these exact parameters create.
+  const d = identityOf(r);
+  if (hex(vaultIdOf(genesisOf(r))) !== hex(d.vaultId))
+    throw new Error("Creation request does not match its vault address");
+  return r;
+}
+/** Checks the file is internally consistent and rebuilds the message the
+ * program will reconstruct. Whether the signature verifies is decided against
+ * the vault on-chain, by `recoveryFileStatus`. */
+export function parseRecoveryFile(raw: string): RecoveryFile & {
+  payloadBytes: Uint8Array;
+  message: Uint8Array;
+  signatureBytes: Uint8Array;
+} {
+  const f = parse(recoveryFileSchema, raw, "a Quantum Safe recovery packet");
+  const d = identityOf(f);
+  const payloadBytes = unhex(f.payload);
+  const r = decodeRecover(payloadBytes);
+  if (
+    hex(r.vaultId) !== f.vaultId ||
+    hex(r.chainTag) !== hex(d.chainTag) ||
+    r.epoch.toString() !== f.epoch
+  )
+    throw new Error("Recovery packet does not match its own description");
+  return {
+    ...f,
+    payloadBytes,
+    message: recoverMessageBytes(addressBytes(f.program), payloadBytes),
+    signatureBytes: unhex(f.signature),
+  };
+}
+/** Whether a packet can be applied to the vault as it is on-chain right now. */
+export function recoveryFileStatus(
+  f: ReturnType<typeof parseRecoveryFile>,
+  chain: VaultState,
+): "ready" | "already-applied" | "wrong-epoch" | "bad-signature" {
+  const epoch = BigInt(f.epoch);
+  if (epoch < chain.epoch) return "already-applied";
+  if (epoch > chain.epoch) return "wrong-epoch";
+  // The signer is named from the vault account, as the program names it.
+  const signer = signerOf(
+    { programId: addressBytes(f.program), chainTag: chain.chainTag, salt: chain.salt },
+    SIGNS_RECOVERY,
+    epoch,
+    0n,
+  );
+  return verifies(signer, f.signatureBytes, f.message, chain.recRoot) ? "ready" : "bad-signature";
+}

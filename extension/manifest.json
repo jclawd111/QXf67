@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Quantum Safe Watch",
+  "short_name": "Quantum Safe Watch",
+  "description": "Get a desktop alert when a withdrawal is announced from your Quantum Safe. Read-only: holds no keys.",
+  "version": "0.1.1",
+  "minimum_chrome_version": "120",
+  "homepage_url": "https://qsafemode.io/watch",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": {
+    "default_title": "Quantum Safe Watch",
+    "default_popup": "popup.html",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": ["https://api.mainnet-beta.solana.com/*"],
+  "optional_host_permissions": ["https://*/*"],
+  "content_security_policy": {
+    "extension_pages": "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src https:; object-src 'none'"
+  }
+}

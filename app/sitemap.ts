@@ -1,0 +1,20 @@
+import type { MetadataRoute } from "next";
+const BASE = "https://qsafemode.io";
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    "",
+    "/demo",
+    "/check",
+    "/bounty",
+    "/integrate",
+    "/emergency",
+    "/docs",
+    "/security",
+    "/verify",
+    "/watch",
+    "/roadmap",
+    "/vault",
+    "/terms",
+    "/privacy",
+  ].map((path) => ({ url: `${BASE}${path}` }));
+}

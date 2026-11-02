@@ -1,0 +1,55 @@
+/** Handles one Telegram update. Only private chats, only three commands. */
+import { Connection, PublicKey } from "@solana/web3.js";
+import { fetchVault } from "@/sdk/v3/chain";
+import { snapshotOf } from "./watch";
+import { FOOTER, WELCOME } from "./messages";
+import { MAX_VAULTS_PER_CHAT, WatchStore } from "./store";
+type Update = {
+  message?: { text?: unknown; chat?: { id?: unknown; type?: unknown } };
+};
+const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
+export async function handleUpdate(
+  update: Update,
+  deps: { store: WatchStore; connection: Connection; program: PublicKey },
+): Promise<{ chat: string; text: string } | null> {
+  const message = update?.message;
+  const id = message?.chat?.id;
+  if (!message || message.chat?.type !== "private" || typeof message.text !== "string") return null;
+  if (typeof id !== "number" || !Number.isSafeInteger(id)) return null;
+  const chat = String(id);
+  const [command, argument] = message.text.trim().split(/\s+/, 2);
+  const reply = (text: string) => ({ chat, text });
+  if (command === "/stop") {
+    const stopped = await deps.store.unsubscribe(chat);
+    return reply(stopped.length ? `Stopped. No longer watching ${stopped.length} Quantum Safe(s).` : "You were not watching anything.");
+  }
+  if (command === "/list") {
+    const mine = await deps.store.vaultsOf(chat);
+    return reply(mine.length ? `Watching:\n${mine.join("\n")}\n\n/stop ends all of them.` : "Not watching anything. Open your Quantum Safe and choose Telegram alerts.");
+  }
+  if (command !== "/start") return reply("Commands: /list, /stop. To watch a Quantum Safe, use the Telegram alerts link on its page.");
+  if (!argument || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(argument))
+    return reply("Open your Quantum Safe at qsafemode.io and choose Telegram alerts to start watching it.");
+  let vault: PublicKey;
+  let snapshot: string;
+  try {
+    vault = new PublicKey(argument);
+    // Only real Qsafes under this program can be watched. Watching starts
+    // from the state it is in right now.
+    const found = await fetchVault(deps.connection, deps.program, vault);
+    snapshot = JSON.stringify(snapshotOf(found.state, found.lamports));
+  } catch {
+    return reply(`That is not a Quantum Safe on this network.\n\n${FOOTER}`);
+  }
+  const result = await deps.store.subscribe(chat, vault.toBase58(), snapshot);
+  const refused = `(${short(vault.toBase58())} was not added.)`;
+  return reply(
+    result === "ok"
+      ? WELCOME(vault.toBase58())
+      : result === "chat-limit"
+        ? `You can watch up to ${MAX_VAULTS_PER_CHAT} Qsafes. Send /stop to clear them, then try again.\n${refused}`
+        : result === "vault-limit"
+          ? `This Quantum Safe already has as many watchers as alerts allow.\n${refused}`
+          : `Alerts are at capacity and cannot take another Quantum Safe right now. You are not being watched for this one; check your Quantum Safe page directly.\n${refused}`,
+  );
+}

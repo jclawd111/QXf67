@@ -1,0 +1,45 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="titaniumBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111920"/>
+      <stop offset="100%" stop-color="#070B0E"/>
+    </linearGradient>
+    <linearGradient id="brushedSilver" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#C8D8E4"/>
+      <stop offset="100%" stop-color="#6E8494"/>
+    </linearGradient>
+    <linearGradient id="glacialIce" x1="14" y1="14" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#DDF2FF"/>
+      <stop offset="50%" stop-color="#A9DEFF"/>
+      <stop offset="100%" stop-color="#4A90E2"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#titaniumBg)" stroke="url(#brushedSilver)" stroke-width="1.5" stroke-opacity="0.6"/>
+
+  <!-- Outer Brushed-Titanium Hexagonal Q Ring -->
+  <path
+    d="M32 13L47 21.5V38.5L32 47L17 38.5V21.5L32 13Z"
+    stroke="url(#brushedSilver)"
+    stroke-width="3.6"
+    stroke-linejoin="miter"
+  />
+
+  <!-- Inner Glacial-Ice Core -->
+  <path
+    d="M32 22L39.8 26.5V35.5L32 40L24.2 35.5V26.5L32 22Z"
+    fill="#091015"
+    stroke="url(#glacialIce)"
+    stroke-width="1.8"
+  />
+
+  <!-- Razor-Sharp Glacial Ice "Q" Slash -->
+  <path
+    d="M34.5 34.5L49.5 49.5"
+    stroke="url(#glacialIce)"
+    stroke-width="4"
+    stroke-linecap="square"
+  />
+  <circle cx="32" cy="31" r="2.2" fill="#A9DEFF"/>
+</svg>

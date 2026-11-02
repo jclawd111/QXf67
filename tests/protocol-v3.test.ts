@@ -1,0 +1,375 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { hkdf } from "@noble/hashes/hkdf";
+import { sha256 } from "@noble/hashes/sha256";
+import { PublicKey } from "@solana/web3.js";
+import { hex, unhex } from "../sdk/bytes";
+import { signerOf, SIGNS_ANNOUNCEMENTS, SIGNS_RECOVERY, verifies } from "../sdk/v3/onetime";
+import {
+  context,
+  Descriptor,
+  epochSeed,
+  operationalKey,
+  recoveryKey,
+} from "../sdk/v3/derive";
+import {
+  genesisAuthorities,
+  genesisVault,
+  recoveryPacket,
+  signAnnouncement,
+} from "../sdk/v3/authority";
+import {
+  ANNOUNCE_DOMAIN,
+  ANNOUNCE_SIZE,
+  RECOVER_DOMAIN,
+  RECOVER_SIZE,
+  VAULT_MAGIC_BYTES,
+  VAULT_SIZE,
+  announceIx,
+  announceMessage,
+  decodeAnnounce,
+  decodeRecover,
+  encodeAnnounce,
+  executeIx,
+  initializeIx,
+  parseVault,
+  pendingPhase,
+  recoverIx,
+  recoverMessage,
+  spentAddress,
+  stageIxs,
+  vaultAddress,
+  vaultIdOf,
+} from "../sdk/v3/protocol";
+import { vectors } from "../scripts/v3-vectors";
+
+const fixture = JSON.parse(readFileSync("fixtures/qsafe-v3.json", "utf8"));
+const program = new PublicKey(fixture.program);
+const d: Descriptor = {
+  chainTag: unhex(fixture.chainTag),
+  programId: program.toBytes(),
+  salt: unhex(fixture.salt),
+  delaySecs: fixture.delaySecs,
+  trusted: (fixture.trusted as string[]).map((t) => unhex(t)),
+  vaultId: unhex(fixture.vaultId),
+};
+const master = unhex(fixture.master);
+const payer = new PublicKey(new Uint8Array(32).fill(5));
+
+describe("Protocol 3 derivation", () => {
+  it("uses HKDF-SHA256 as published (RFC 5869 test case 1)", () => {
+    const okm = hkdf(
+      sha256,
+      unhex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"),
+      unhex("000102030405060708090a0b0c"),
+      unhex("f0f1f2f3f4f5f6f7f8f9"),
+      42,
+    );
+    expect(hex(okm)).toBe(
+      "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865",
+    );
+  });
+  it("builds the 109-byte context in the specified order", () => {
+    const c = context(d);
+    expect(c.length).toBe(241);
+    expect(new TextDecoder().decode(c.slice(0, 12))).toBe("QSAFE_KDF_04");
+    expect(c[12]).toBe(0);
+    expect(hex(c.slice(13, 45))).toBe(fixture.chainTag);
+    expect(hex(c.slice(45, 77))).toBe(fixture.programBytes);
+    expect(hex(c.slice(77, 109))).toBe(fixture.salt);
+    expect(new DataView(c.buffer, c.byteOffset).getUint32(109, true)).toBe(fixture.delaySecs);
+    // Four 32-byte slots: the trusted wallets first, the rest zero.
+    expect(hex(c.slice(113, 145))).toBe(fixture.trusted[0]);
+    expect(c.slice(145).every((b) => b === 0)).toBe(true);
+    expect(() => context({ ...d, salt: new Uint8Array(31) })).toThrow();
+  });
+  it("separates roles, epochs, indices and vaults", () => {
+    const seen = new Set<string>();
+    const add = (b: Uint8Array) => {
+      const h = hex(b.slice(0, 32));
+      expect(seen.has(h)).toBe(false);
+      seen.add(h);
+    };
+    const seed0 = epochSeed(master, d, 0n);
+    const seed1 = epochSeed(master, d, 1n);
+    add(seed0);
+    add(seed1);
+    add(recoveryKey(master, d, 0n));
+    add(recoveryKey(master, d, 1n));
+    add(operationalKey(seed0, d, 0n, 0n));
+    add(operationalKey(seed0, d, 0n, 1n));
+    add(operationalKey(seed1, d, 1n, 0n));
+    // Same seed bytes used under the wrong epoch label derive something else.
+    add(operationalKey(seed0, d, 1n, 0n));
+    const other = { ...d, salt: new Uint8Array(32).fill(8) };
+    add(epochSeed(master, other, 0n));
+    add(recoveryKey(master, other, 0n));
+    const otherChain = { ...d, chainTag: new Uint8Array(32).fill(1) };
+    add(recoveryKey(master, otherChain, 0n));
+    // The same master and salt with another waiting period is another vault
+    // with unrelated keys, so one recovery key can never sign for two vaults.
+    const otherDelay = { ...d, delaySecs: 0 };
+    add(recoveryKey(master, otherDelay, 0n));
+    add(epochSeed(master, otherDelay, 0n));
+    // And so is the same vault with another trusted list.
+    const otherTrusted = { ...d, trusted: [new Uint8Array(32).fill(0xaa)] };
+    add(recoveryKey(master, otherTrusted, 0n));
+    add(epochSeed(master, otherTrusted, 0n));
+    // 34 chain starts and a 32-byte seed for the signature's randomizer.
+    expect(recoveryKey(master, d, 0n).length).toBe(1120);
+    expect(operationalKey(seed0, d, 0n, 0n).length).toBe(1120);
+    expect(seed0.length).toBe(32);
+  });
+  it("rejects wrong-length key material and out-of-range indices", () => {
+    expect(() => recoveryKey(new Uint8Array(31), d, 0n)).toThrow();
+    expect(() => operationalKey(new Uint8Array(33), d, 0n, 0n)).toThrow();
+    expect(() => epochSeed(master, d, -1n)).toThrow();
+    expect(() => epochSeed(master, d, 1n << 64n)).toThrow();
+  });
+});
+
+describe("Protocol 3 encodings", () => {
+  const a = decodeAnnounce(unhex(fixture.announce.payload));
+  it("round-trips an announcement at the specified offsets", () => {
+    const bytes = unhex(fixture.announce.payload);
+    expect(bytes.length).toBe(ANNOUNCE_SIZE);
+    expect([bytes[0], bytes[1], bytes[82]]).toEqual([3, 1, 0]);
+    expect(hex(bytes.slice(2, 34))).toBe(fixture.vaultId);
+    expect(hex(bytes.slice(34, 66))).toBe(fixture.chainTag);
+    expect(hex(bytes.slice(115, 147))).toBe(fixture.destination);
+    expect(a.amount.toString()).toBe(fixture.amount);
+    expect(a.announceBy.toString()).toBe(fixture.announceBy);
+    expect(hex(a.nextOpRoot)).toBe(fixture.epoch0.opRootIndex1);
+    expect(hex(encodeAnnounce(a))).toBe(fixture.announce.payload);
+  });
+  it("rejects malformed announcements", () => {
+    const bytes = unhex(fixture.announce.payload);
+    const longer = new Uint8Array([...bytes, 0]);
+    for (const length of [0, 1, ANNOUNCE_SIZE - 1, ANNOUNCE_SIZE + 1])
+      expect(() => decodeAnnounce(longer.slice(0, length))).toThrow();
+    const edit = (offset: number, value: number) => {
+      const b = bytes.slice();
+      b[offset] = value;
+      return () => decodeAnnounce(b);
+    };
+    expect(edit(0, 2)).toThrow();
+    expect(edit(1, 2)).toThrow();
+    expect(edit(82, 2)).toThrow();
+    expect(edit(82, 1)).toThrow(); // token kind with a zero mint
+    expect(edit(83, 1)).toThrow(); // SOL kind with a mint
+    expect(() => encodeAnnounce({ ...a, amount: 0n })).toThrow();
+    expect(() => encodeAnnounce({ ...a, announceBy: 0n })).toThrow();
+    expect(() => encodeAnnounce({ ...a, nextOpRoot: new Uint8Array(32) })).toThrow();
+    // SOL states no decimals; a token states the ones the signer was shown.
+    expect(() => encodeAnnounce({ ...a, decimals: 9 })).toThrow();
+    const token = { ...a, kind: 1 as const, mint: new PublicKey(new Uint8Array(32).fill(4)), decimals: 6 };
+    const encoded = encodeAnnounce(token);
+    expect([encoded.length, encoded[195], decodeAnnounce(encoded).decimals]).toEqual([196, 6, 6]);
+    expect(() => encodeAnnounce({ ...token, decimals: 256 })).toThrow();
+    expect(() => encodeAnnounce({ ...token, decimals: -1 })).toThrow();
+    // Its instruction names the mint and the vault's paying token account,
+    // read-only, after the six SOL's has. Without the source it is not built.
+    const source = new PublicKey(new Uint8Array(32).fill(5));
+    expect(() => announceIx(program, payer, encoded, unhex(fixture.epoch0.opRoot))).toThrow("Token source required");
+    const tokenIx = announceIx(program, payer, encoded, unhex(fixture.epoch0.opRoot), source);
+    expect(tokenIx.keys.length).toBe(8);
+    expect(tokenIx.keys[6].pubkey.equals(token.mint) && !tokenIx.keys[6].isWritable).toBe(true);
+    expect(tokenIx.keys[7].pubkey.equals(source) && !tokenIx.keys[7].isWritable).toBe(true);
+  });
+  it("round-trips a recovery packet and keeps the roles apart", () => {
+    const bytes = unhex(fixture.recover.payload);
+    expect(bytes.length).toBe(RECOVER_SIZE);
+    const r = decodeRecover(bytes);
+    expect(r.epoch).toBe(0n);
+    expect(hex(r.nextOpRoot)).toBe(fixture.epoch1.opRoot);
+    expect(() => decodeRecover(unhex(fixture.announce.payload))).toThrow();
+    expect(() => decodeAnnounce(bytes)).toThrow();
+    const sameRoots = bytes.slice();
+    sameRoots.set(bytes.slice(74, 106), 106);
+    expect(() => decodeRecover(sameRoots)).toThrow();
+  });
+  it("binds messages to the program and the vault address", () => {
+    const m = announceMessage(program, unhex(fixture.announce.payload));
+    expect(m.length).toBe(276);
+    expect(hex(m.slice(0, 16))).toBe(hex(ANNOUNCE_DOMAIN));
+    expect(hex(m.slice(16, 48))).toBe(fixture.programBytes);
+    expect(new PublicKey(m.slice(48, 80)).toBase58()).toBe(fixture.vault);
+    const r = recoverMessage(program, unhex(fixture.recover.payload));
+    expect(r.length).toBe(218);
+    expect(hex(r.slice(0, 16))).toBe(hex(RECOVER_DOMAIN));
+    const elsewhere = new PublicKey(new Uint8Array(32).fill(12));
+    expect(hex(announceMessage(elsewhere, unhex(fixture.announce.payload)))).not.toBe(hex(m));
+  });
+  it("parses a vault and reports the phase of its withdrawal", () => {
+    const data = new Uint8Array(VAULT_SIZE);
+    data.set(VAULT_MAGIC_BYTES);
+    data.set(d.vaultId, 8);
+    data.set(d.chainTag, 40);
+    data.set(unhex(fixture.epoch0.opRoot), 72);
+    data.set(unhex(fixture.epoch0.recRoot), 120);
+    new DataView(data.buffer).setUint32(152, 86_400, true);
+    data[286] = 254;
+    data.set(d.salt, 415);
+    const idle = parseVault(data);
+    expect(hex(idle.salt)).toBe(fixture.salt);
+    expect([idle.epoch, idle.opIndex, idle.delaySecs, idle.pending, idle.bump]).toEqual([0n, 0n, 86_400, null, 254]);
+    expect(pendingPhase(idle, 5n)).toBe("none");
+    const stale = data.slice();
+    stale[200] = 1;
+    expect(() => parseVault(stale)).toThrow();
+    const pending = data.slice();
+    pending[156] = 1;
+    pending.set(unhex(fixture.destination), 190);
+    const view = new DataView(pending.buffer);
+    view.setBigUint64(222, 7n, true);
+    view.setBigInt64(230, 1000n, true);
+    view.setBigInt64(238, 2000n, true);
+    const v = parseVault(pending);
+    expect(v.pending!.amount).toBe(7n);
+    expect([999n, 1000n, 2000n, 2001n].map((t) => pendingPhase(v, t))).toEqual(["waiting", "open", "open", "expired"]);
+    expect(() => parseVault(data.slice(1))).toThrow();
+  });
+});
+
+describe("Protocol 3 authorities", () => {
+  it("reproduces the checked-in vectors byte for byte", () => {
+    expect(vectors()).toEqual(fixture);
+  });
+  it("derives genesis roots and signs with the derived keys", () => {
+    const g = genesisAuthorities(master, d);
+    expect(hex(g.opRoot)).toBe(fixture.epoch0.opRoot);
+    expect(hex(g.recRoot)).toBe(fixture.epoch0.recRoot);
+    const operational = signerOf(d, SIGNS_ANNOUNCEMENTS, 0n, 0n);
+    const recovery = signerOf(d, SIGNS_RECOVERY, 0n, 0n);
+    const announce = [unhex(fixture.announce.signature), unhex(fixture.announce.message)] as const;
+    const recover = [unhex(fixture.recover.signature), unhex(fixture.recover.message)] as const;
+    expect(verifies(operational, ...announce, g.opRoot)).toBe(true);
+    expect(verifies(recovery, ...recover, g.recRoot)).toBe(true);
+    // Neither signature verifies under the other role's root or signer.
+    expect(verifies(operational, ...announce, g.recRoot)).toBe(false);
+    expect(verifies(recovery, ...announce, g.opRoot)).toBe(false);
+    expect(verifies(recovery, ...recover, g.opRoot)).toBe(false);
+    expect(verifies(operational, ...recover, g.recRoot)).toBe(false);
+    // Nor under another index, generation, salt, chain or program.
+    for (const other of [
+      signerOf(d, SIGNS_ANNOUNCEMENTS, 0n, 1n),
+      signerOf(d, SIGNS_ANNOUNCEMENTS, 1n, 0n),
+      signerOf({ ...d, salt: new Uint8Array(32).fill(8) }, SIGNS_ANNOUNCEMENTS, 0n, 0n),
+      signerOf({ ...d, chainTag: new Uint8Array(32).fill(8) }, SIGNS_ANNOUNCEMENTS, 0n, 0n),
+      signerOf({ ...d, programId: new Uint8Array(32).fill(8) }, SIGNS_ANNOUNCEMENTS, 0n, 0n),
+    ])
+      expect(verifies(other, ...announce, g.opRoot)).toBe(false);
+    // The index is 64 bits; q is always zero.
+    expect(signerOf(d, SIGNS_ANNOUNCEMENTS, 0n, 1n << 40n).q).toBe(0);
+    expect(() => signerOf(d, SIGNS_ANNOUNCEMENTS, 0n, 1n << 64n)).toThrow();
+    expect(verifies({ ...operational, q: 1 }, ...announce, g.opRoot)).toBe(false);
+    expect(() => signerOf(d, SIGNS_RECOVERY, 0n, 1n)).toThrow("no index");
+  });
+  it("the recovery packet is a pure function of master, vault and epoch", () => {
+    const a = recoveryPacket(master, d, 0n);
+    const b = recoveryPacket(master, d, 0n);
+    expect(hex(a.payload)).toBe(hex(b.payload));
+    expect(hex(a.signature)).toBe(hex(b.signature));
+    expect(hex(a.nextSeed)).toBe(fixture.epoch1.seed);
+    expect(hex(recoveryPacket(master, d, 1n).payload)).not.toBe(hex(a.payload));
+  });
+  it("an operational signer cannot choose its next root", () => {
+    const seed = unhex(fixture.epoch0.seed);
+    const signed = signAnnouncement(seed, d, {
+      epoch: 0n,
+      opIndex: 0n,
+      kind: 0,
+      mint: PublicKey.default,
+      destination: new PublicKey(unhex(fixture.destination)),
+      amount: 1n,
+      announceBy: 5n,
+      decimals: 0,
+    });
+    expect(hex(decodeAnnounce(signed.payload).nextOpRoot)).toBe(fixture.epoch0.opRootIndex1);
+  });
+  it("builds instructions with the account order the program expects", () => {
+    const g = genesisAuthorities(master, d);
+    const vault = vaultAddress(program, d.vaultId);
+    const genesis = { salt: d.salt, chainTag: d.chainTag, opRoot: g.opRoot, recRoot: g.recRoot, delaySecs: 86_400, trusted: d.trusted };
+    const init = initializeIx(program, payer, genesis);
+    expect([init.data[0], init.data.length, init.keys.length]).toEqual([0, 261, 3]);
+    expect(init.keys[1].pubkey.equals(vault)).toBe(true);
+    expect(() => initializeIx(program, payer, { ...genesis, delaySecs: 604_801 })).toThrow();
+    expect(() => initializeIx(program, payer, { ...genesis, recRoot: g.opRoot })).toThrow();
+    const stage = stageIxs(program, payer, unhex(fixture.announce.message), unhex(fixture.announce.signature));
+    expect(stage.map((s) => s.data.length)).toEqual([1 + 32 + 2 + 600, 1 + 32 + 2 + 524]);
+    const announce = announceIx(program, payer, unhex(fixture.announce.payload), g.opRoot);
+    expect([announce.data[0], announce.keys.length]).toEqual([2, 6]);
+    expect(announce.keys[3].pubkey.equals(spentAddress(program, vault, g.opRoot))).toBe(true);
+    expect(announce.keys.map((k) => k.isWritable)).toEqual([true, false, true, true, false, false]);
+    const recover = recoverIx(program, payer, unhex(fixture.recover.payload), g);
+    expect([recover.data[0], recover.keys.length]).toEqual([5, 7]);
+    const destination = new PublicKey(unhex(fixture.destination));
+    const pending = { kind: 0 as const, mint: PublicKey.default, destination, amount: 1n, opensAt: 0n, deadline: 1n, epoch: 0n, digest: new Uint8Array(32) };
+    const execute = executeIx(program, vault, pending);
+    expect([execute.data.length, execute.keys.length]).toEqual([1, 2]);
+    expect(() => executeIx(program, vault, { ...pending, kind: 1 })).toThrow();
+  });
+});
+describe("Protocol 3 vault identity", () => {
+  const g = genesisAuthorities(master, d);
+  const genesis = { salt: d.salt, chainTag: d.chainTag, opRoot: g.opRoot, recRoot: g.recRoot, delaySecs: fixture.delaySecs as number, trusted: d.trusted };
+  it("is the hash of the creation data, and the address follows from it", () => {
+    expect(hex(vaultIdOf(genesis))).toBe(fixture.vaultId);
+    expect(vaultAddress(program, vaultIdOf(genesis)).toBase58()).toBe(fixture.vault);
+    expect(hex(genesisVault(master, d).d.vaultId)).toBe(fixture.vaultId);
+  });
+  it("changes with every creation parameter", () => {
+    const other = new Uint8Array(32).fill(0xee);
+    const ids = new Set(
+      [
+        genesis,
+        { ...genesis, salt: other },
+        { ...genesis, chainTag: other },
+        { ...genesis, opRoot: other },
+        { ...genesis, recRoot: other },
+        { ...genesis, delaySecs: 0 },
+        { ...genesis, trusted: [] },
+        { ...genesis, trusted: [other] },
+        { ...genesis, trusted: [...genesis.trusted, other] },
+        // The same two wallets in the other order are a different vault.
+        { ...genesis, trusted: [other, ...genesis.trusted] },
+      ].map((x) => hex(vaultIdOf(x))),
+    );
+    expect(ids.size).toBe(10);
+    // The list is at most four distinct, non-zero wallets.
+    const w = (n: number) => new Uint8Array(32).fill(n);
+    expect(() => vaultIdOf({ ...genesis, trusted: [w(1), w(2), w(3), w(4), w(5)] })).toThrow("At most 4");
+    expect(() => vaultIdOf({ ...genesis, trusted: [w(1), w(1)] })).toThrow("listed twice");
+    expect(() => vaultIdOf({ ...genesis, trusted: [new Uint8Array(32)] })).toThrow("Invalid trusted address");
+    expect(() => vaultIdOf({ ...genesis, trusted: [new Uint8Array(31)] })).toThrow();
+  });
+  it("scopes spent markers to one vault", () => {
+    const a = vaultAddress(program, vaultIdOf(genesis));
+    const b = vaultAddress(program, vaultIdOf({ ...genesis, delaySecs: 0 }));
+    expect(spentAddress(program, a, g.opRoot).equals(spentAddress(program, b, g.opRoot))).toBe(false);
+    expect(() => spentAddress(program, a, new Uint8Array(32))).toThrow();
+  });
+});
+describe("Refusal codes", () => {
+  it("has a sentence for every code the program defines, and for no other", async () => {
+    const { REFUSALS } = await import("../sdk/v3/refusals");
+    const source = readFileSync("programs/qsafe3/src/state.rs", "utf8");
+    const body = /pub enum Refusal \{([\s\S]*?)\n\}/.exec(source)![1];
+    const codes = [...body.matchAll(/=\s*(\d+),/g)].map((m) => Number(m[1])).sort((a, b) => a - b);
+    expect(codes.length).toBeGreaterThan(15);
+    expect(Object.keys(REFUSALS).map(Number).sort((a, b) => a - b)).toEqual(codes);
+    for (const text of Object.values(REFUSALS)) expect(text.length).toBeGreaterThan(20);
+  });
+  it("finds the code in the ways a failure is reported", async () => {
+    const { refusalText, REFUSALS } = await import("../sdk/v3/refusals");
+    expect(refusalText('The network would reject this step ({"InstructionError":[1,{"Custom":121}]}). This step was not sent.')).toBe(REFUSALS[121]);
+    expect(refusalText('Transaction failed: {"InstructionError":[2,{"Custom": 124}]}')).toBe(REFUSALS[124]);
+    expect(refusalText("InstructionError(1, Custom(111))")).toBe(REFUSALS[111]);
+    // An unknown code or an ordinary error is left to the general wording.
+    expect(refusalText('{"InstructionError":[0,{"Custom":9999}]}')).toBeNull();
+    expect(refusalText('{"InstructionError":[0,"InvalidArgument"]}')).toBeNull();
+    expect(refusalText("fetch failed")).toBeNull();
+  });
+});
+

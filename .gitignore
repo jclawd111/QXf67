@@ -1,0 +1,78 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+__pycache__/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/.vinext/
+/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+next-env.d.ts
+/dist/
+/.wrangler/
+# Checkout-local execution profile and tool state; never publish them.
+/.sites-runtime/
+/.agents/
+/.codex/
+/outputs/
+/work/
+
+/target/
+/test-results/
+/playwright-report/
+*.tsbuildinfo
+*-keypair.json
+*.recovery.json
+.env*
+!.env.example
+/.local-validator/
+/public/source/
+
+# Explicit exported recovery filenames must never enter source or Git.
+qsafe-devnet-*.json
+qsafe-test-*.json
+qsafe-RECOVERY-KIT-*.json
+qsafe-day-key-*.json
+qsafe-cancel-file-*.json
+qsafe-recovery-packet-*.json
+qsafe-creation-request-*.json
+qsafe-network-card-*.json
+id.json
+*.key
+
+# standalone in-process VM tests
+/programs/qsafe3-svm-tests/target/
+# Written by the dev server for coding assistants; not source.
+AGENTS.md
+
+# Local deployment receipts and test funding status
+/docs/evidence/

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Quantum Safe Cryptographic Boundary</title>
+  <desc id="desc">An everyday hot wallet signs deposits and pays fees, while only the 34-chain SHA-256 LM-OTS signature can authorize a withdrawal from Quantum Safe.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#080b0e"/>
+      <stop offset="100%" stop-color="#0d1318"/>
+    </linearGradient>
+    <linearGradient id="ti" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f4f8fb"/>
+      <stop offset="50%" stop-color="#c8d8e4"/>
+      <stop offset="100%" stop-color="#6e8494"/>
+    </linearGradient>
+    <linearGradient id="ice" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ddf2ff"/>
+      <stop offset="100%" stop-color="#a9deff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <g stroke="rgba(200,216,228,0.06)" stroke-width="1">
+    <line x1="0" y1="120" x2="1280" y2="120"/>
+    <line x1="0" y1="360" x2="1280" y2="360"/>
+    <line x1="0" y1="600" x2="1280" y2="600"/>
+    <line x1="320" y1="0" x2="320" y2="720"/>
+    <line x1="640" y1="0" x2="640" y2="720"/>
+    <line x1="960" y1="0" x2="960" y2="720"/>
+  </g>
+  <text x="64" y="68" fill="#a9deff" font-family="monospace" font-size="14" letter-spacing="3">QUANTUM SAFE · CRYPTOGRAPHIC AIRLOCK BOUNDARY</text>
+  <text x="64" y="104" fill="#f4f8fb" font-family="sans-serif" font-size="28" font-weight="700">Why a compromised hot wallet key cannot open your Quantum Safe</text>
+
+  <!-- Left Box: Hot Wallet Zone -->
+  <rect x="64" y="160" width="460" height="460" rx="14" fill="#0c1116" stroke="rgba(200,216,228,0.22)" stroke-width="1.5"/>
+  <text x="96" y="208" fill="#9cb0c0" font-family="monospace" font-size="13" letter-spacing="2">ZONE 01 · EVERYDAY HOT WALLET (ED25519)</text>
+  <text x="96" y="248" fill="#f4f8fb" font-family="sans-serif" font-size="22" font-weight="600">Exposed to dApps &amp; Phishing</text>
+  <rect x="96" y="284" width="396" height="90" rx="8" fill="#111820" stroke="rgba(200,216,228,0.16)"/>
+  <text x="116" y="318" fill="#f4f8fb" font-family="monospace" font-size="14" font-weight="600">✓ Pays Solana network gas fees</text>
+  <text x="116" y="348" fill="#9cb0c0" font-family="monospace" font-size="13">✓ Sweeps SOL &amp; SPL tokens INTO Quantum Safe</text>
+
+  <rect x="96" y="396" width="396" height="100" rx="8" fill="rgba(243,150,135,0.08)" stroke="rgba(243,150,135,0.35)"/>
+  <text x="116" y="432" fill="#f39687" font-family="monospace" font-size="14" font-weight="600">✗ CANNOT authorize vault withdrawals</text>
+  <text x="116" y="462" fill="#c8d8e4" font-family="monospace" font-size="12">Ed25519 signatures are rejected by the vault</text>
+  <text x="116" y="482" fill="#c8d8e4" font-family="monospace" font-size="12">verifier. Stolen seed phrase = 0 vault access.</text>
+
+  <!-- Center Airlock Barrier -->
+  <line x1="640" y1="150" x2="640" y2="630" stroke="#a9deff" stroke-width="2" stroke-dasharray="8 8"/>
+  <rect x="560" y="330" width="160" height="120" rx="10" fill="#09131c" stroke="#a9deff" stroke-width="2"/>
+  <text x="640" y="375" text-anchor="middle" fill="#a9deff" font-family="monospace" font-size="12" font-weight="700" letter-spacing="1.5">ONE-WAY VALVE</text>
+  <text x="640" y="402" text-anchor="middle" fill="#f4f8fb" font-family="monospace" font-size="13">DEPOSITS → IN</text>
+  <text x="640" y="426" text-anchor="middle" fill="#f39687" font-family="monospace" font-size="12">DRAINER → BLOCKED</text>
+
+  <!-- Right Box: Quantum Safe Vault -->
+  <rect x="756" y="160" width="460" height="460" rx="14" fill="#0b1218" stroke="#a9deff" stroke-width="2"/>
+  <text x="788" y="208" fill="#a9deff" font-family="monospace" font-size="13" letter-spacing="2">ZONE 02 · QUANTUM SAFE VAULT PDA</text>
+  <text x="788" y="248" fill="#ffffff" font-family="sans-serif" font-size="22" font-weight="600">34-Chain SHA-256 Custody (RFC 8554)</text>
+
+  <rect x="788" y="284" width="396" height="96" rx="8" fill="#101b24" stroke="rgba(169,222,255,0.28)"/>
+  <text x="808" y="318" fill="#a9deff" font-family="monospace" font-size="14" font-weight="600">◈ 1,124-Byte LM-OTS Signature Required</text>
+  <text x="808" y="346" fill="#c8d8e4" font-family="monospace" font-size="12">Signs exact asset, amount, recipient &amp; next</text>
+  <text x="808" y="366" fill="#c8d8e4" font-family="monospace" font-size="12">key commitment. Retires key immediately.</text>
+
+  <rect x="788" y="400" width="396" height="96" rx="8" fill="#101b24" stroke="rgba(169,222,255,0.28)"/>
+  <text x="808" y="434" fill="#f4f8fb" font-family="monospace" font-size="14" font-weight="600">◈ 24h Timelock + Stop-File Airlock</text>
+  <text x="808" y="462" fill="#c8d8e4" font-family="monospace" font-size="12">Instant to your 4 cold wallets. Unknown</text>
+  <text x="808" y="482" fill="#c8d8e4" font-family="monospace" font-size="12">destinations wait 24h &amp; can be cancelled.</text>
+
+  <text x="788" y="560" fill="#7f95a6" font-family="monospace" font-size="12">OFFLINE RECOVERY KIT :: Air-gapped scrypt + AES-256-GCM</text>
+  <text x="788" y="584" fill="#7f95a6" font-family="monospace" font-size="12">UPGRADE AUTHORITY    :: Permanently Renounced (Immutable)</text>
+</svg>

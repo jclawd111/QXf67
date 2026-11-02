@@ -1,0 +1,193 @@
+import Link from "next/link";
+import { DocumentLayout } from "@/components/qsafe/document-layout";
+export const metadata = { title: "How Quantum Safe works" };
+export default function Page() {
+  return (
+    <DocumentLayout
+      eyebrow="THE OPERATOR’S MANUAL"
+      title="A small vault. An explicit process."
+      description="What each key does, what leaves your device, and what happens at every step."
+    >
+      <section>
+        <h2>Three keys, three jobs</h2>
+        <ul>
+          <li>
+            <strong>Your wallet</strong> pays network fees and makes deposits.
+            It has no authority over the vault. Connecting it reads your
+            public address and grants nothing.
+          </li>
+          <li>
+            <strong>Your day key</strong> announces withdrawals. It is a file
+            protected by a password, and on a supported device you can unlock
+            it with a passkey instead.
+          </li>
+          <li>
+            <strong>Your recovery kit</strong> is made once and never changes.
+            It replaces a lost or stolen day key and cancels a withdrawal that
+            is still waiting. It never moves assets, and it is never opened on
+            this website.
+          </li>
+        </ul>
+      </section>
+      <section>
+        <h2>1. Build a Quantum Safe, offline</h2>
+        <p>
+          Download the recovery tool from the{" "}
+          <Link href="/recovery">recovery page</Link>. It is a single file
+          whose own security policy stops it making network connections, and it
+          only runs from the copy you saved, never from the website. In it
+          you choose two passwords, one for the recovery kit and a different
+          one for the day key, your trusted addresses, and how long everything else waits. It saves
+          four files: the recovery kit, your first day key, a cancel file, and a creation
+          request. Only the creation request, which holds public commitments
+          and nothing secret, is uploaded to the site to create the vault
+          on-chain. The recovery kit’s password is never typed into a
+          website.
+        </p>
+        <p>
+          Each key file is encrypted with AES-256-GCM under a key derived
+          from its password with scrypt, a function chosen because each
+          guess at the password costs an attacker a large amount of memory.
+          There is no reset, so the recovery kit’s password should be five or
+          more unrelated words. The Quantum Safe’s address is computed from its keys and its
+          waiting period, so nobody else can create it with different ones. The tool makes you re-open the saved kit before it
+          continues.
+        </p>
+      </section>
+      <section>
+        <h2>2. Trusted addresses and the waiting period</h2>
+        <p>
+          When you build a Quantum Safe you can list up to four trusted addresses.
+          A withdrawal to one of them arrives as soon as you approve it. A
+          withdrawal to any other address waits, 24 hours unless you pick
+          another period from one hour to seven days, and you can cancel it
+          during the wait. You can also turn the wait off entirely. The
+          addresses and the period are part of the Quantum Safe’s own address and
+          cannot be changed afterwards; to change them, build a new Quantum Safe
+          and move to it.
+        </p>
+        <p>
+          Trusted addresses should be wallets that a thief on your everyday
+          computer could not also empty, and whose keys you hold: a hardware
+          wallet is the right answer. Someone who steals your day key can
+          send everything to a trusted address at once, so it has to be
+          somewhere you can always get it back from.
+        </p>
+        <p>
+          What it buys: without one, anyone who gets your day key and its
+          password can withdraw immediately. With one, you have that long to
+          cancel.
+        </p>
+      </section>
+      <section>
+        <h2>3. Deposit from anywhere</h2>
+        <p>
+          A Quantum Safe has an ordinary Solana address. SOL can be sent to it from
+          any wallet, exchange or trading terminal. Classic SPL tokens are
+          deposited through the app, which creates the right token account.
+          Token-2022 is not supported.
+        </p>
+      </section>
+      <section>
+        <h2>4. Withdraw</h2>
+        <p>
+          Open your Quantum Safe with the day key. Enter the asset, amount and
+          recipient, review them, and approve three transactions: two upload a
+          1,124-byte one-time signature, and the third verifies it. The
+          signature fixes the exact asset, amount and destination, and names
+          the next one-time key, so the key you used is retired in the same
+          step and the same signature can never be used again.
+        </p>
+        <p>
+          With no waiting period, that third transaction also sends the
+          assets. With one, it records the withdrawal and starts the clock;
+          when the wait ends, anyone can submit the release, and it can only
+          go to the address you signed.
+        </p>
+      </section>
+      <section>
+        <h2>5. Cancel, or replace a key</h2>
+        <p>
+          <b>If a withdrawal you did not make is waiting,</b> upload your
+          cancel file on the recovery page. It cancels the withdrawal and
+          retires the day key that announced it, at once, and you do not need
+          your recovery kit to do it. Keep the cancel file where you can reach
+          it in minutes, and not beside the day key. It holds no secret and
+          cannot move anything; the worst anyone else can do with it is stop
+          your Quantum Safe until you make a new day key from your recovery kit.
+        </p>
+        <p>
+          <b>To replace keys at any other time:</b> in
+          {" "}the offline tool, open your recovery kit and enter your Quantum Safe’s
+          current key generation. It saves a recovery packet, a new day key
+          and that key’s cancel file. Upload the packet on the recovery page. It installs new keys,
+          retires every earlier day key, and cancels a withdrawal that has not
+          left. For a given Quantum Safe and key generation the packet is always the
+          same bytes, so making or submitting it twice is harmless.
+        </p>
+        <p>
+          The same step is the answer whenever something is in doubt: a lost
+          day key, a device you no longer trust, or a withdrawal that was
+          signed but never reached the network.
+        </p>
+      </section>
+      <section>
+        <h2>6. Seal</h2>
+        <p>
+          Sealing removes the day key from the browser tab. The Quantum Safe on-chain
+          is unchanged, and opens again only with the day key.
+        </p>
+      </section>
+      <section>
+        <h2>7. If this website is gone</h2>
+        <p>
+          Nothing above needs this site to exist. The offline tool is a file
+          you already have. To withdraw, release or submit a recovery packet
+          without the website, there is a command-line program in one file:
+          it needs Node 22, your day key file, an ordinary Solana wallet file
+          to pay fees, and the address of any Solana connection.
+        </p>
+        <p>
+          <a href="/source/qsafe-cli.mjs" download="qsafe-cli.mjs">
+            Download qsafe-cli.mjs
+          </a>{" "}
+          and keep it with your day key. Its SHA-256 is in{" "}
+          <a href="/source/cli-manifest.json">cli-manifest.json</a>; compare it
+          with a copy built from the public source. Run{" "}
+          <code>node qsafe-cli.mjs help</code> for the commands.
+        </p>
+      </section>
+      <section>
+        <h2>What to keep in mind</h2>
+        <ul>
+          <li>
+            Use one day key on one device. A second device cannot know what
+            the first has signed.
+          </li>
+          <li>
+            Keep the recovery kit off the device you browse with. Whoever
+            holds it and its password controls the Quantum Safe.
+          </li>
+          <li>
+            Lose both the recovery kit and the day key and nobody can open the
+            vault.
+          </li>
+        </ul>
+        <p>
+          <Link href="/security">What Quantum Safe does and does not protect.</Link>
+        </p>
+      </section>
+      <section>
+        <h2>Run and review the implementation</h2>
+        <p>
+          The repository holds the program, the client, the offline tool, the
+          byte-level specification, and the RFC 8554 LM-OTS test vectors. No
+          wallet credentials are shipped.
+        </p>
+        <a href="https://github.com/VictorChaoss/QuantumSafe" className="button light">
+          Get the working repository
+        </a>
+      </section>
+    </DocumentLayout>
+  );
+}

@@ -1,0 +1,31 @@
+# External review request
+
+CertiK audited the program and signature verifier (commit `f6a37ce`) and published its report on 2026-10-20. The client, offline tool and extension have not been reviewed; any badge or claim must name the program as what was audited.
+
+Suggested in two phases.
+
+## Phase 1: design, before the code is frozen
+
+- [PROTOCOL.md](PROTOCOL.md) in full, and its seventeen questions put to reviewers.
+- [INTERNAL-REVIEW.md](INTERNAL-REVIEW.md): the findings of the project's own review and how each was resolved.
+- The LM-OTS implementations (`crates/qsafe-lmots`, `sdk/lmots.ts`) against RFC 8554 section 4, and the three choices this use makes: one-time keys chained outside an LMS tree (with `q = 0`, as the RFC requires there), an identifier derived from the vault, and a derived randomizer selected to bound verification cost (CRYPTOGRAPHY.md).
+- Whether one fixed, re-emitted recovery signature per epoch is acceptable for that scheme.
+- The HKDF derivation and its context binding.
+- Whether a zero waiting period should be permitted, and as the default.
+- The separation between the offline tool and the website, and what distribution would make it meaningful.
+
+## Phase 2: implementation, on a frozen tag
+
+- `programs/qsafe3`: owner, PDA and alias validation; SOL rent; classic SPL mint, owner, delegate and close-authority checks; CPI; error paths; arithmetic and time boundaries.
+- Fuzzing of instruction lengths, account counts, partial proofs, duplicate accounts and adversarial token states.
+- Spent markers and their per-vault scope, the vault-identity hash, rollback of failed transactions, root-reinstallation rejection, and interference between vaults.
+- Exact correspondence of `sdk/v3` and the program, with independent vectors.
+- `sdk/v3/journal.ts`: crash windows, storage failure, same-origin races, a chain view that moves backwards, multi-device use.
+- `sdk/v3/kit.ts` and `sdk/v3/passkey.ts`: parsing, KDF, associated data, and what a passkey does and does not protect.
+- `tools/recovery` and its build: page policy, bundle contents, reproducibility.
+- The website: CSP on pages and on unproxied paths, RPC proxy bounds, release gate, source-bundle contents, the alert watcher, dependency supply chain.
+- Upgrade-authority policy, incident response, disclosure process and bounty.
+
+## Release requirements
+
+A written cryptographic assessment, an independent program audit, verified remediation, reproducible build evidence, publication of the program id and authority, operational ownership, and a deliberate source change to enable real-fund custody. Do not turn these into checkmarks without evidence.

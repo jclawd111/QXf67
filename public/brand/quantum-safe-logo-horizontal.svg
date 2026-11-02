@@ -1,0 +1,30 @@
+<svg width="420" height="64" viewBox="0 0 420 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="titaniumBgH" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111920"/>
+      <stop offset="100%" stop-color="#070B0E"/>
+    </linearGradient>
+    <linearGradient id="brushedSilverH" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#C8D8E4"/>
+      <stop offset="100%" stop-color="#6E8494"/>
+    </linearGradient>
+    <linearGradient id="glacialIceH" x1="12" y1="12" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#DDF2FF"/>
+      <stop offset="50%" stop-color="#A9DEFF"/>
+      <stop offset="100%" stop-color="#4A90E2"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(4, 4)">
+    <rect x="2" y="2" width="52" height="52" rx="12" fill="url(#titaniumBgH)" stroke="url(#brushedSilverH)" stroke-width="1.5" stroke-opacity="0.65"/>
+    <path d="M28 11L41 18.5V33.5L28 41L15 33.5V18.5L28 11Z" stroke="url(#brushedSilverH)" stroke-width="3.2"/>
+    <path d="M28 19L34.8 23V31L28 35L21.2 31V23L28 19Z" fill="#091015" stroke="url(#glacialIceH)" stroke-width="1.6"/>
+    <path d="M30 30L43 43" stroke="url(#glacialIceH)" stroke-width="3.4" stroke-linecap="square"/>
+    <circle cx="28" cy="27" r="2" fill="#A9DEFF"/>
+  </g>
+
+  <text x="76" y="39" fill="#F4F8FB" font-family="'Space Grotesk', 'Inter', system-ui, sans-serif" font-weight="700" font-size="24" letter-spacing="3.5">
+    QUANTUM<tspan fill="#A9DEFF" dx="6">SAFE</tspan>
+  </text>
+</svg>

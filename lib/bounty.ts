@@ -1,0 +1,54 @@
+/** The bug bounty's terms, in one place. Change a payout here and nowhere
+ * else. "TBD" means not set yet; the page prints it as written. */
+export const REPORT_URL = "https://github.com/VictorChaoss/QuantumSafe/security/advisories/new";
+export type Tier = { name: "Critical" | "High" | "Medium" | "Low"; payout: string; means: string; examples: string[] };
+export const TIERS: Tier[] = [
+  {
+    name: "Critical",
+    payout: "TBD",
+    means: "Funds leave a Quantum Safe without its owner’s keys, or its rules are bypassed.",
+    examples: [
+      "Withdraw from a Quantum Safe you don’t control.",
+      "Reuse or forge a one-time-key signature.",
+      "Bypass the trusted addresses or the waiting period.",
+      "Read a recovery kit’s secret out of the offline tool.",
+    ],
+  },
+  {
+    name: "High",
+    payout: "TBD",
+    means: "An owner loses control of a Quantum Safe, or signs something they did not see.",
+    examples: [
+      "Lock a Quantum Safe’s funds so its owner can never withdraw them.",
+      "Make the site, the offline tool or the command-line client sign something other than what it showed.",
+      "Take a day key or its password out of the site, for example by running your own script on qsafemode.io.",
+      "Cancel or block someone else’s withdrawal or recovery.",
+    ],
+  },
+  {
+    name: "Medium",
+    payout: "TBD",
+    means: "A Quantum Safe is disrupted or misreported, and no funds move.",
+    examples: [
+      "Stop one Quantum Safe from working for a while.",
+      "Make an alert miss a withdrawal, or report one that did not happen.",
+      "Show a wrong balance or a wrong state that could lead an owner to a bad decision.",
+    ],
+  },
+  {
+    name: "Low",
+    payout: "TBD",
+    means: "A real flaw with no path to anyone’s funds.",
+    examples: [
+      "A gap in the page’s security policy that cannot be used yet.",
+      "A check that is weaker than the documentation says.",
+      "Wording that would mislead a careful reader about what is protected.",
+    ],
+  },
+];
+/** People who reported something that was confirmed and fixed. */
+export const HALL_OF_FAME: { name: string; found: string; fixedIn: string }[] = [];
+/** The vault's payment wallet on Ethereum. Some payments are asked for in
+ * USDT there, so SOL leaves the vault, is swapped, and is paid out from this
+ * address. Public, like the vault's own address, and shown only with it. */
+export const PAYMENT_WALLET = "0x2F48613a3D1D81ADfD30058F4D12B39B8F20101f";

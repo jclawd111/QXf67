@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Quantum Safe Three-Key Separation</title>
+  <desc id="desc">Separation of duties between the Hot Wallet Key, the LM-OTS Day Key, and the Offline Recovery Kit.</desc>
+  <rect width="1280" height="720" fill="#080b0e"/>
+  <text x="64" y="68" fill="#a9deff" font-family="monospace" font-size="14" letter-spacing="3">QUANTUM SAFE · KEY SEPARATION ARCHITECTURE</text>
+  <text x="64" y="106" fill="#f4f8fb" font-family="sans-serif" font-size="28" font-weight="700">Three Distinct Keys. Zero Single Point of Failure.</text>
+
+  <rect x="64" y="160" width="360" height="460" rx="12" fill="#0d1318" stroke="rgba(200,216,228,0.22)"/>
+  <text x="92" y="210" fill="#9cb0c0" font-family="monospace" font-size="13">01 / HOT WALLET KEY</text>
+  <text x="92" y="246" fill="#f4f8fb" font-family="sans-serif" font-size="20" font-weight="600">Ed25519 Fee Payer</text>
+  <text x="92" y="290" fill="#c8d8e4" font-family="monospace" font-size="13">• Pays Solana network fees</text>
+  <text x="92" y="320" fill="#c8d8e4" font-family="monospace" font-size="13">• Deposits funds into vault</text>
+  <text x="92" y="350" fill="#f39687" font-family="monospace" font-size="13">• Zero withdrawal authority</text>
+
+  <rect x="460" y="160" width="360" height="460" rx="12" fill="#0d151d" stroke="#a9deff" stroke-width="1.8"/>
+  <text x="488" y="210" fill="#a9deff" font-family="monospace" font-size="13">02 / LM-OTS DAY KEY</text>
+  <text x="488" y="246" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="600">34-Chain SHA-256 Signer</text>
+  <text x="488" y="290" fill="#c8d8e4" font-family="monospace" font-size="13">• Signs 1,124B withdrawal proofs</text>
+  <text x="488" y="320" fill="#c8d8e4" font-family="monospace" font-size="13">• Instant to 4 trusted cold wallets</text>
+  <text x="488" y="350" fill="#a9deff" font-family="monospace" font-size="13">• Single-use per generation</text>
+
+  <rect x="856" y="160" width="360" height="460" rx="12" fill="#0d1318" stroke="rgba(200,216,228,0.32)"/>
+  <text x="884" y="210" fill="#c8d8e4" font-family="monospace" font-size="13">03 / RECOVERY KIT</text>
+  <text x="884" y="246" fill="#f4f8fb" font-family="sans-serif" font-size="20" font-weight="600">Offline Master Root</text>
+  <text x="884" y="290" fill="#c8d8e4" font-family="monospace" font-size="13">• Air-gapped offline HTML tool</text>
+  <text x="884" y="320" fill="#c8d8e4" font-family="monospace" font-size="13">• Rotates lost/stolen Day Keys</text>
+  <text x="884" y="350" fill="#c8d8e4" font-family="monospace" font-size="13">• Never touches any website</text>
+</svg>
