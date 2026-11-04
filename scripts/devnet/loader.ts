@@ -1,6 +1,12 @@
 import { PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY, TransactionInstruction } from "@solana/web3.js";
 import { DEVNET_GENESIS } from "../../lib/qsafe-config";
 export const LOADER = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
+/** The upgradeable loader drains the upload buffer into the payer before funding ProgramData. */
+export function deploymentFundingRequired(bufferRent: number, dataRent: number, programRent: number, existingBufferBalance: number | null, feeReserve = 10_000_000): number {
+  const uploadFunding = existingBufferBalance === null ? bufferRent : 0;
+  const bufferCredit = existingBufferBalance ?? bufferRent;
+  return uploadFunding + Math.max(0, dataRent - bufferCredit) + programRent + feeReserve;
+}
 export function requireDevnet(genesis: string): void {
   if (genesis !== DEVNET_GENESIS) throw new Error("This operation is devnet only");
 }

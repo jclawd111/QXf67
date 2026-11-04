@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { configFromEnv, DEVNET_GENESIS, MAINNET_GENESIS } from "../lib/qsafe-config";
-import { requireDevnet, bufferWrite, deployProgram } from "../scripts/devnet/loader";
+import { requireDevnet, bufferWrite, deployProgram, deploymentFundingRequired } from "../scripts/devnet/loader";
 import { assertProgramFailure } from "../scripts/devnet/evidence";
 
 describe("Devnet-only build", () => {
+  it("reuses buffer rent during deployment and credits a resumable upload", () => {
+    expect(deploymentFundingRequired(655955000, 655995640, 833120, null)).toBe(666828760);
+    expect(deploymentFundingRequired(655955000, 655995640, 833120, 655955000)).toBe(10873760);
+    expect(deploymentFundingRequired(655955000, 655995640, 833120, 700000000)).toBe(10833120);
+  });
   it("counts a rejection only for the intended program instruction and error code", () => {
     expect(() => assertProgramFailure({ InstructionError: [1, { Custom: 123 }] }, 1, 123)).not.toThrow();
     for (const error of [null, "BlockhashNotFound", { InstructionError: [1, "ComputationalBudgetExceeded"] }, { InstructionError: [0, { Custom: 123 }] }, { InstructionError: [1, { Custom: 121 }] }]) {

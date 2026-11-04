@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Cpu, Menu } from "lucide-react";
 import { NavLinks } from "./nav-links";
-import { getLaunch } from "@/lib/launch-config";
 
 export function Mark({ small = false }: { small?: boolean }) {
   const size = small ? 28 : 32;
@@ -73,19 +72,12 @@ export function Mark({ small = false }: { small?: boolean }) {
 export const OFFICIAL_X_URL = "https://x.com/TheQuantumSafe";
 
 export function Header() {
-  const { coinAddress } = getLaunch();
   return (
     <>
       <div className="network-bar qs-network-bar">
         <Cpu size={13} />
-        <strong>POST-QUANTUM PROTOCOL · SOLANA MAINNET</strong>
-        {coinAddress ? (
-          <span className="mono" style={{ color: "#d8f0ff" }}>
-            $QSAFE CA: <strong>{coinAddress}</strong>
-          </span>
-        ) : (
-          <span>Protected by 34-Chain SHA-256 One-Time Signatures (RFC 8554 LM-OTS) · Immutable Custody.</span>
-        )}
+        <strong>INDEPENDENT DEVELOPMENT FORK · SOLANA DEVNET</strong>
+        <span>Experimental custody · Valueless test assets only.</span>
         <Link href="/security">Security boundaries</Link>
         <a
           href={OFFICIAL_X_URL}
@@ -160,9 +152,9 @@ export function Footer() {
           <span className="mono">VERIFICATION</span>
           <Link href="/security">Security & limitations</Link>
           <Link href="/verify">Verify on-chain bytecode</Link>
-          <a href="https://github.com/VictorChaoss/QuantumSafe">Source on GitHub</a>
+          <a href="https://github.com/jclawd111/QXf67">Source on GitHub</a>
           <Link href="/bounty">Bug bounty</Link>
-          <a href="https://github.com/VictorChaoss/QuantumSafe/security/advisories/new">
+          <a href="https://github.com/jclawd111/QXf67/security/advisories/new">
             Report a vulnerability
           </a>
           <Link href="/terms">Terms & risks</Link>
@@ -173,17 +165,18 @@ export function Footer() {
           <a href={OFFICIAL_X_URL} target="_blank" rel="noreferrer">
             𝕏 (@TheQuantumSafe)
           </a>
-          <a href="https://github.com/VictorChaoss/QuantumSafe" target="_blank" rel="noreferrer">
+          <a href="https://github.com/jclawd111/QXf67" target="_blank" rel="noreferrer">
             GitHub Repository
           </a>
+          <a href="https://github.com/VictorChaoss/QuantumSafe" target="_blank" rel="noreferrer">Original MIT source</a>
         </div>
       </div>
       <span className="mono footer-status">
-        OPEN SOURCE · RFC 8554 LM-OTS ON SOLANA MAINNET · QUANTUM SAFE · @TheQuantumSafe
+        OPEN SOURCE · RFC 8554 LM-OTS ON SOLANA DEVNET · INDEPENDENT DEVELOPMENT FORK
       </span>
       <p className="footer-fine">
-        Quantum Safe is an open-source post-quantum custody protocol on Solana powered by RFC 8554
-        LM-OTS SHA-256 hash chains. Non-custodial and immutable—no admin keys exist.
+        This independent development fork uses RFC 8554 LM-OTS SHA-256 hash chains.
+        The test deployment is upgradeable and unaudited. Use valueless devnet assets only.
       </p>
     </footer>
   );

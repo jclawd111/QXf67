@@ -19,6 +19,21 @@ npm run dev -- --hostname 127.0.0.1
 
 Open http://127.0.0.1:5173/vault. The app displays a persistent DEVNET banner. Do not enter real wallet secrets or recovery kits.
 
+## Use the verified devnet deployment
+
+Program: [`2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ`](https://explorer.solana.com/address/2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ?cluster=devnet).
+
+To run the interface against this program without deploying another copy, create a local `.env.local`:
+
+```dotenv
+QSAFE_ENABLE_TEST_CUSTODY=true
+QSAFE_TEST_NETWORK=devnet
+QSAFE_TEST_PROGRAM_ID=2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ
+SOLANA_RPC_URL=https://api.devnet.solana.com
+```
+
+Restart `npm run dev` after adding these settings. Use a separate wallet set to **Devnet**. This test program remains upgradeable. There is no paid hosting or uptime guarantee; public devnet RPC can throttle requests.
+
 ## Independent devnet deployment
 
 ```sh
@@ -35,7 +50,9 @@ Deployment writes `.env.local` only after verifying the devnet executable. Uploa
 
 ## Validation status
 
-The development checkpoint passed 208 unit tests, TypeScript checking, production build, and desktop/mobile network-label and offline-recovery browser tests. Known production dependency audit reported zero advisories at that checkpoint. Four inherited lint warnings remain. Live devnet funding/deployment was pending when this snapshot was prepared. No professional audit of this fork or full user-wallet browser transaction cycle is claimed.
+On November 4, 2026, free faucet funding enabled deployment and **18 live custody assertions across 20 confirmed transactions**: creation/deposit, exact withdrawals, destination substitution and spent-key rejection, timelock behavior, recovery/cancellation, and withdrawal with recovered authority. The deployed code hash matches the pinned upstream executable. Public receipts: [deployment](docs/devnet-deployment.json), [live SDK checks](docs/devnet-smoke.json).
+
+The current checkpoint passes unit tests, TypeScript checking, and desktop/mobile network-label and offline-recovery browser tests. Production build and dependency audit passed at the initial checkpoint; four inherited lint warnings remain. No professional audit of this fork, independently reproduced Rust build, or full user-wallet browser transaction cycle is claimed.
 
 The upstream docs are retained for provenance; statements there about the original mainnet deployment or its audit do not apply to this fork. Extension and alert-service rollout are outside this first devnet milestone.
 

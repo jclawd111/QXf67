@@ -8,4 +8,7 @@ test("development fork labels the network and serves a fail-closed config", asyn
   expect(config.expectedGenesis).toBe("EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG");
   expect(config.network).not.toBe("mainnet-beta");
   await expect(page).toHaveTitle(/DEVNET/);
+  await expect(page.locator(".network-bar")).toContainText("SOLANA DEVNET");
+  await expect(page.locator(".site-footer")).not.toContainText("no admin keys exist");
+  await expect(page.getByRole("link", { name: "Source on GitHub", exact: true })).toHaveAttribute("href", "https://github.com/jclawd111/QXf67");
 });

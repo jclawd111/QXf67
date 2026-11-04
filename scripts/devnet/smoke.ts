@@ -6,10 +6,11 @@ import { chainTime, fetchVault } from "../../sdk/v3/chain";
 import { announceIx, closeProofIx, computeIx, executeIx, initializeIx, recoverIx, stageIxs, vaultAddress } from "../../sdk/v3/protocol";
 import { requireDevnet } from "./loader";
 import { assertProgramFailure } from "./evidence";
+import { pacedDevnetFetch } from "./rpc";
 
 const deployment = JSON.parse(readFileSync("docs/evidence/devnet-deployment.json", "utf8"));
 if (deployment.status !== "deployed-and-verified") throw new Error("Deploy and verify the devnet program first");
-const c = new Connection("https://api.devnet.solana.com", { commitment: "confirmed", disableRetryOnRateLimit: true });
+const c = new Connection("https://api.devnet.solana.com", { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: pacedDevnetFetch() });
 const genesis = await c.getGenesisHash(); requireDevnet(genesis);
 const program = new PublicKey(deployment.program);
 if (!(await c.getAccountInfo(program))?.executable) throw new Error("Devnet program is not executable");

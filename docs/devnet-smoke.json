@@ -1,0 +1,191 @@
+{
+  "network": "devnet",
+  "program": "2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ",
+  "startedAt": "2026-11-04T13:42:02.711Z",
+  "checks": [
+    "vault identity/state 0",
+    "deposit balance 0",
+    "destination substitution rejected",
+    "recipient received exact test SOL",
+    "vault debited exact test SOL",
+    "second execution rejected",
+    "one-time key advanced 0",
+    "spent one-time announcement rejected",
+    "recovery rotates authority and clears pending 0",
+    "recovered operational root 0",
+    "recovered authority can withdraw exact test SOL",
+    "vault identity/state 86400",
+    "deposit balance 86400",
+    "timelock does not move funds",
+    "early execution rejected",
+    "one-time key advanced 86400",
+    "recovery rotates authority and clears pending 86400",
+    "recovered operational root 86400"
+  ],
+  "transactions": [
+    {
+      "label": "create-and-deposit-0",
+      "signature": "5xviqZo2kxtn3dhyfscKeY8VbHhEfqKF5iKcAfpthmposEL31m8iV86GdRuituN6vqPw881Zq7EZL5xXfyMkLPyJ"
+    },
+    {
+      "label": "stage-0-0",
+      "signature": "4qvYnvjtcXzNuBTtxZmADXqRctwpGNxiapwt72tK7mBZsYrUNPciEJGapy8G6eBkHpCGWbmEnedgVjTmouHvePHu"
+    },
+    {
+      "label": "stage-0-1",
+      "signature": "3CrjuEHo9p3qteRs3pWL9Z4nmAGevXmpJSF1ngcrvvEMqR6EPFte6ptgBvSCncjSUAbMBRurHMqbQ3QMM2As2neb"
+    },
+    {
+      "label": "instant-withdraw",
+      "signature": "3MZfzBaX2GRTMQzXYKt9qgjSFU9SbmXTaNyzuXC5ypf8QqhdkK1v6ibT5BiscrP7frEvcF4h2bnpM17f2vXoFXw5"
+    },
+    {
+      "label": "replay-stage-0",
+      "signature": "3XBnLdy3fan8A1Je2bbq35gAkM9X14tG5H7nTjMkG6TbGgNFrep1unw8rGVfG4x6rbEc1qPMf2irZ4HJepjMLjQk"
+    },
+    {
+      "label": "replay-stage-1",
+      "signature": "5JMXUCvcU1a8X5XJaRSE87mhyK9HSoeNwjWkDHRePn4vF1JRWGQjRgbKVEMLop6GizF9ssnZmeafKppcTFo5cCiw"
+    },
+    {
+      "label": "close-replayed-proof",
+      "signature": "2Yh41VHiaL35qK1QcBC8faqfA1btTvKfPxHgoV4nn79zsausyg4RxRUQkpY5dsQwczsHpQEzf4KtwvzAR1wqtjVQ"
+    },
+    {
+      "label": "recovery-stage-0-0",
+      "signature": "58gfp7RvaPhaxgbqyJCGHZGW37FDvWvrZHPP3MVdaUHn8dhGMVnDj9LEoqkaG58yRhVxVdSy99ab9kkJP8rZex69"
+    },
+    {
+      "label": "recovery-stage-0-1",
+      "signature": "3QZBkmfKVXT2p6CCkgD2HoqmVVjnKbBUNN3FpJjNSHeG4ZANzQq9UMxTZvsZbmYaLMbLRWncj2PRTvxqXXePkyid"
+    },
+    {
+      "label": "recover-0",
+      "signature": "32Ak8DYHkiEvFGseEVvZtNqJFNMuVJvkMqh5huFtjFwgwTZYKbBBrQtBXKmiU4aSX6es66KHeSjKcVrad9JCrnbF"
+    },
+    {
+      "label": "new-key-stage-0",
+      "signature": "5L9GfU5GN2otyhotKMVjSj2pciQRKvBya99KsZi1G4YYKEHkZxhSiCRDTRLCaiy1eQeAeGTBDqa9cB86Fn1PLT4P"
+    },
+    {
+      "label": "new-key-stage-1",
+      "signature": "4W8fFNpXbfv9UUDgAfbp7FziVdc8uutYobfdYXJLaBFDRg8g2FZCN2MNb8sUNZFScCrRazC2JT5N2bq9agJvyd1G"
+    },
+    {
+      "label": "withdraw-with-recovered-key",
+      "signature": "D4ySVawvMsRak4n17ubirYAHtHkUDCQNkrL7hPDdZBn2UgM3Mhi9DFNpSF91w7Wr5sVNscvtRbRFCdiZVPfZN9b"
+    },
+    {
+      "label": "create-and-deposit-86400",
+      "signature": "R3EgS5N2EGWThQmmYbW96MHgdwd41whK4Zt58EucYn2RSoDXz3jutFDrV2oZCzjYrDbtRnhQQbKtfvayeBASz5g"
+    },
+    {
+      "label": "stage-86400-0",
+      "signature": "5nVr5HqQnNq7tAkVWqgvwxXtW43kqWqj6GcBoQVjkfpsmVoQ4bHw31Y8emrAsunxamvDemeVUKxu31pSP9b92U6v"
+    },
+    {
+      "label": "stage-86400-1",
+      "signature": "3BxfpDszzuxUNqCWaUAV9Pq5FUkYNj1r4hytk8t8DLDjXwTbY3gBYyYLeuTZfescVemS5jkAahPh7wURBYmH5J8j"
+    },
+    {
+      "label": "announce-timelocked-withdrawal",
+      "signature": "24kNbhJTqgMut5ftgmDwozWta7gvYUn1ZCRCDeKH8ijT9iurAe3TagavzJ6WQjW4SDT14fD2femYre8cLvqRafi6"
+    },
+    {
+      "label": "recovery-stage-86400-0",
+      "signature": "2vrDjK6p4jA7deV5QcoNLzeJQ1vdp3E8EBcszyTzVEyFKEbetJaXe2tMASxccMpwLko2J4a815vLFe1B4Bi4Vqzs"
+    },
+    {
+      "label": "recovery-stage-86400-1",
+      "signature": "36ZvgnBZyiU3cXLpxvBzD5jShcWQjze4tMWRjoVPac86RXUyTYKdNCoj9Su9BrUeopUKhrNkGBtcyDzeJN2KqSGc"
+    },
+    {
+      "label": "recover-86400",
+      "signature": "2JB37oKPjp78hu5bX7QERGVikT1DNKocBpdi9xUnDmawvErKr7RrkcgmLFRJc5SHh4xxdYbWudbfb4Jo2xkA6CcK"
+    }
+  ],
+  "vaults": [
+    "4V3jZGBHwLCkNZ2x1q3TxqK7xURhbFck9HV7ML4vvYEB",
+    "6Ym48QusGyYFRFxGHdoUSQeNtr4uYreLPDAUJjAhjE6H"
+  ],
+  "rejections": [
+    {
+      "label": "destination substitution rejected",
+      "error": {
+        "InstructionError": [
+          2,
+          {
+            "Custom": 123
+          }
+        ]
+      },
+      "logs": [
+        "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+        "Program ComputeBudget111111111111111111111111111111 success",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ invoke [1]",
+        "Program 11111111111111111111111111111111 invoke [2]",
+        "Program 11111111111111111111111111111111 success",
+        "Program 11111111111111111111111111111111 invoke [2]",
+        "Program 11111111111111111111111111111111 success",
+        "Program 11111111111111111111111111111111 invoke [2]",
+        "Program 11111111111111111111111111111111 success",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ consumed 542985 of 799850 compute units",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ success",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ invoke [1]",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ consumed 2940 of 256865 compute units",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ failed: custom program error: 0x7b"
+      ]
+    },
+    {
+      "label": "second execution rejected",
+      "error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 120
+          }
+        ]
+      },
+      "logs": [
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ invoke [1]",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ consumed 3664 of 200000 compute units",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ failed: custom program error: 0x78"
+      ]
+    },
+    {
+      "label": "spent one-time announcement rejected",
+      "error": {
+        "InstructionError": [
+          1,
+          {
+            "Custom": 110
+          }
+        ]
+      },
+      "logs": [
+        "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+        "Program ComputeBudget111111111111111111111111111111 success",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ invoke [1]",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ consumed 11727 of 799850 compute units",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ failed: custom program error: 0x6e"
+      ]
+    },
+    {
+      "label": "early execution rejected",
+      "error": {
+        "InstructionError": [
+          0,
+          {
+            "Custom": 121
+          }
+        ]
+      },
+      "logs": [
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ invoke [1]",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ consumed 2928 of 200000 compute units",
+        "Program 2Jx1guanrtHTSFXqPa6wu6gjgJcFcPL577KnkBi5cSqJ failed: custom program error: 0x79"
+      ]
+    }
+  ],
+  "finishedAt": "2026-11-04T13:43:10.602Z"
+}

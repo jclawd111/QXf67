@@ -2,11 +2,12 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Connection, Keypair, SystemProgram, Transaction, TransactionInstruction, sendAndConfirmTransaction } from "@solana/web3.js";
-import { LOADER, bufferWrite, deployProgram, requireDevnet } from "./loader";
+import { LOADER, bufferWrite, deployProgram, requireDevnet, deploymentFundingRequired } from "./loader";
 import { checkDeployment, trimmed } from "../check-deployment";
+import { pacedDevnetFetch } from "./rpc";
 
 const endpoint = "https://api.devnet.solana.com";
-const c = new Connection(endpoint, { commitment: "confirmed", disableRetryOnRateLimit: true });
+const c = new Connection(endpoint, { commitment: "confirmed", disableRetryOnRateLimit: true, fetch: pacedDevnetFetch() });
 requireDevnet(await c.getGenesisHash());
 mkdirSync("work/devnet", { recursive: true });
 mkdirSync("docs/evidence", { recursive: true });
@@ -39,7 +40,7 @@ if (!(await c.getAccountInfo(program.publicKey))?.executable) {
   const programRent = await c.getMinimumBalanceForRentExemption(36);
   let balance = await c.getBalance(payer.publicKey);
   const existingBuffer = await c.getAccountInfo(buffer.publicKey);
-  const needed = dataRent + programRent + (existingBuffer ? 0 : bufferRent) + 10_000_000;
+  const needed = deploymentFundingRequired(bufferRent, dataRent, programRent, existingBuffer?.lamports ?? null);
   if (balance < needed) {
     console.log(JSON.stringify({ action: "free-devnet-airdrop", payer: payer.publicKey.toBase58(), balance, needed }));
     const signature = await c.requestAirdrop(payer.publicKey, 2_000_000_000);
@@ -74,4 +75,4 @@ if (!verification.codeMatches) throw new Error("Devnet executable verification f
 receipt.verification = verification;
 writeFileSync(".env.local", `QSAFE_ENABLE_TEST_CUSTODY=true\nQSAFE_TEST_NETWORK=devnet\nQSAFE_TEST_PROGRAM_ID=${program.publicKey.toBase58()}\nSOLANA_RPC_URL=${endpoint}\n`, { mode: 0o600 });
 save("deployed-and-verified");
-console.log(JSON.stringify({ status: receipt.status, program: receipt.program, codeMatches: verification.codeMatches, balance: await c.getBalance(payer.publicKey) }));
+console.log(JSON.stringify({ status: receipt.status, program: receipt.program, codeMatches: verification.codeMatches }));
